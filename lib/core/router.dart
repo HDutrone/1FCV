@@ -23,7 +23,6 @@ import '../screens/misc/main_shell.dart';
 import '../screens/misc/not_found_screen.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
-final _shellNavigatorKey = GlobalKey<NavigatorState>();
 
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
