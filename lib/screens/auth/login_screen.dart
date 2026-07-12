@@ -161,7 +161,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   const SizedBox(height: 20),
                   Center(
                     child: GestureDetector(
-                      onTap: () => context.go('/register'),
+                      onTap: () => context.replace('/register'),
                       child: RichText(
                         text: const TextSpan(
                           style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
