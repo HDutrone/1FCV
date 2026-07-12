@@ -221,7 +221,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
                   color: AppColors.saleLight,
                   borderRadius: BorderRadius.circular(AppRadius.md),
                 ),
-                child: const Icon(LucideIcons.house, size: 20, color: AppColors.primary),
+                child: const Icon(LucideIcons.home, size: 20, color: AppColors.primary),
               ),
               const SizedBox(width: AppSpacing.md),
               Expanded(
