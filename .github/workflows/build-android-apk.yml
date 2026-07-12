@@ -1,0 +1,50 @@
+name: Build Android APK
+
+on:
+  push:
+    branches:
+      - 'claude/**'
+    paths-ignore:
+      - '**.md'
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          flutter-version: '3.35.5'
+
+      - name: Create .env
+        run: |
+          cat <<'EOF' > .env
+          SUPABASE_URL=https://wwjfdljauxllcklxgfpf.supabase.co
+          SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind3amZkbGphdXhsbGNrbHhnZnBmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU2ODIzNjIsImV4cCI6MjA5MTI1ODM2Mn0.91MyROrolGCBpOfqXcJ9UrspzUM6iTp5bznx-8NN7KI
+          EOF
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: Build release APK
+        run: flutter build apk --release
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: 1-futur-chez-vous-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 30
