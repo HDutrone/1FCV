@@ -5,9 +5,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show FileOptions;
 
 import '../../core/supabase_client.dart';
 import '../../core/theme.dart';
+import '../../core/watermark.dart';
 import '../../data/locations_repository.dart';
 import '../../data/properties_repository.dart';
 import '../../models/models.dart';
@@ -257,9 +259,14 @@ class _PublishScreenState extends ConsumerState<PublishScreen> {
 
   Future<void> _uploadImages(String userId, String propertyId) async {
     for (var i = 0; i < _images.length; i++) {
-      final file = File(_images[i].path);
+      final originalBytes = await File(_images[i].path).readAsBytes();
+      final watermarked = await watermarkImageBytesAsync(originalBytes);
       final path = '$userId/$propertyId/${DateTime.now().millisecondsSinceEpoch}_$i.jpg';
-      await supabase.storage.from('property-images').upload(path, file);
+      await supabase.storage.from('property-images').uploadBinary(
+            path,
+            watermarked,
+            fileOptions: const FileOptions(contentType: 'image/jpeg'),
+          );
       final url = supabase.storage.from('property-images').getPublicUrl(path);
       await supabase.from('property_images').insert({
         'property_id': propertyId,
