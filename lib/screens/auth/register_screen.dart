@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
+import '../../core/build_info.dart';
 import '../../core/theme.dart';
 import '../../models/models.dart';
 import '../../providers/auth_provider.dart';
@@ -212,6 +213,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       margin: const EdgeInsets.only(bottom: 16),
                       decoration: BoxDecoration(color: AppColors.errorLight, borderRadius: BorderRadius.circular(10)),
                       child: Text(_error!, style: const TextStyle(color: AppColors.error, fontSize: 14, fontWeight: FontWeight.w500)),
+                    ),
+                  if (_error != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: Text('Build $kBuildSha', style: const TextStyle(color: AppColors.textTertiary, fontSize: 10)),
                     ),
                   AppInput(
                     label: 'Nom complet',
