@@ -14,6 +14,7 @@ import '../../providers/subscription_provider.dart';
 import '../../widgets/animated_scale_tap.dart';
 import '../../widgets/app_badge.dart';
 import '../../widgets/app_button.dart';
+import '../../widgets/property_image_placeholder.dart';
 import '../../widgets/skeleton.dart';
 
 class _StatusInfo {
@@ -219,7 +220,13 @@ class _ListingCard extends StatelessWidget {
                 children: [
                   SizedBox(
                     width: 110,
-                    child: CachedNetworkImage(imageUrl: property.primaryImageUrl, fit: BoxFit.cover),
+                    child: property.primaryImageUrl != null
+                        ? CachedNetworkImage(
+                            imageUrl: property.primaryImageUrl!,
+                            fit: BoxFit.cover,
+                            errorWidget: (context, url, error) => const PropertyImagePlaceholder(iconSize: 24),
+                          )
+                        : const PropertyImagePlaceholder(iconSize: 24),
                   ),
                   Expanded(
                     child: Padding(

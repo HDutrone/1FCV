@@ -17,6 +17,7 @@ import '../../widgets/app_badge.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_input.dart';
 import '../../widgets/property_card.dart';
+import '../../widgets/property_image_placeholder.dart';
 import '../../widgets/skeleton.dart';
 
 class _InterestStatusConfig {
@@ -573,17 +574,20 @@ class _Gallery extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          PageView.builder(
-            controller: controller,
-            itemCount: images.length,
-            onPageChanged: onPageChanged,
-            itemBuilder: (context, index) => CachedNetworkImage(
-              imageUrl: images[index],
-              fit: BoxFit.cover,
-              placeholder: (context, url) => Container(color: AppColors.surfaceSecondary),
-              errorWidget: (context, url, error) => Container(color: AppColors.surfaceSecondary),
+          if (images.isEmpty)
+            const PropertyImagePlaceholder(iconSize: 56)
+          else
+            PageView.builder(
+              controller: controller,
+              itemCount: images.length,
+              onPageChanged: onPageChanged,
+              itemBuilder: (context, index) => CachedNetworkImage(
+                imageUrl: images[index],
+                fit: BoxFit.cover,
+                placeholder: (context, url) => Container(color: AppColors.surfaceSecondary),
+                errorWidget: (context, url, error) => const PropertyImagePlaceholder(iconSize: 56),
+              ),
             ),
-          ),
           IgnorePointer(
             child: Container(
               decoration: const BoxDecoration(

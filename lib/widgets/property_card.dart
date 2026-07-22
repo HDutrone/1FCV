@@ -7,6 +7,7 @@ import '../core/theme.dart';
 import '../models/models.dart';
 import 'animated_scale_tap.dart';
 import 'app_badge.dart';
+import 'property_image_placeholder.dart';
 
 class PropertyCard extends StatelessWidget {
   final Property property;
@@ -53,13 +54,16 @@ class PropertyCard extends StatelessWidget {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  CachedNetworkImage(
-                    imageUrl: property.primaryImageUrl,
-                    fit: BoxFit.cover,
-                    fadeInDuration: const Duration(milliseconds: 280),
-                    placeholder: (context, url) => Container(color: AppColors.surfaceSecondary),
-                    errorWidget: (context, url, error) => Container(color: AppColors.surfaceSecondary),
-                  ),
+                  if (property.primaryImageUrl != null)
+                    CachedNetworkImage(
+                      imageUrl: property.primaryImageUrl!,
+                      fit: BoxFit.cover,
+                      fadeInDuration: const Duration(milliseconds: 280),
+                      placeholder: (context, url) => Container(color: AppColors.surfaceSecondary),
+                      errorWidget: (context, url, error) => const PropertyImagePlaceholder(),
+                    )
+                  else
+                    const PropertyImagePlaceholder(),
                   Container(
                     decoration: const BoxDecoration(
                       gradient: LinearGradient(

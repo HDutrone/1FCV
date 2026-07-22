@@ -216,32 +216,33 @@ class Property {
                 ?.map((e) => PropertyImage.fromJson(e as Map<String, dynamic>))
                 .toList() ??
             const [],
-        ownerCriteria: (json['owner_criteria'] as List?)?.isNotEmpty == true
-            ? OwnerCriteria.fromJson((json['owner_criteria'] as List).first as Map<String, dynamic>)
-            : null,
+        ownerCriteria: _parseOwnerCriteria(json['owner_criteria']),
       );
 
-  String get primaryImageUrl {
-    if (images.isEmpty) return _placeholderFor(id);
+  // owner_criteria has a UNIQUE foreign key to properties (one-to-one), so
+  // PostgREST embeds it as a single object rather than a list; other
+  // relationships (property_images, tenant_interests) stay arrays. Handle
+  // both shapes defensively since this differs by relationship type.
+  static OwnerCriteria? _parseOwnerCriteria(dynamic raw) {
+    if (raw == null) return null;
+    if (raw is Map<String, dynamic>) return OwnerCriteria.fromJson(raw);
+    if (raw is List && raw.isNotEmpty) return OwnerCriteria.fromJson(raw.first as Map<String, dynamic>);
+    return null;
+  }
+
+  // null/empty means "no photo uploaded" — callers must render a local,
+  // network-independent placeholder rather than hotlinking a stock photo.
+  String? get primaryImageUrl {
+    if (images.isEmpty) return null;
     final primary = images.where((i) => i.isPrimary).toList();
     return primary.isNotEmpty ? primary.first.url : images.first.url;
   }
 
   List<String> get orderedImageUrls {
-    if (images.isEmpty) return [_placeholderFor(id)];
+    if (images.isEmpty) return [];
     final sorted = [...images]..sort((a, b) => (b.isPrimary ? 1 : 0) - (a.isPrimary ? 1 : 0));
     return sorted.map((e) => e.url).toList();
   }
-
-  static const _placeholders = [
-    'https://images.pexels.com/photos/1396122/pexels-photo-1396122.jpeg?auto=compress&cs=tinysrgb&w=800',
-    'https://images.pexels.com/photos/1571460/pexels-photo-1571460.jpeg?auto=compress&cs=tinysrgb&w=800',
-    'https://images.pexels.com/photos/323780/pexels-photo-323780.jpeg?auto=compress&cs=tinysrgb&w=800',
-    'https://images.pexels.com/photos/1029599/pexels-photo-1029599.jpeg?auto=compress&cs=tinysrgb&w=800',
-    'https://images.pexels.com/photos/2089698/pexels-photo-2089698.jpeg?auto=compress&cs=tinysrgb&w=800',
-  ];
-
-  static String _placeholderFor(String id) => _placeholders[id.codeUnitAt(0) % _placeholders.length];
 }
 
 class PropertyFilters {
