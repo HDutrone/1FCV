@@ -98,43 +98,54 @@ class _PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen> {
   }
 
   Future<void> _load() async {
-    final property = await propertiesRepository.fetchPropertyById(widget.propertyId);
-    if (property == null) {
+    try {
+      final property = await propertiesRepository.fetchPropertyById(widget.propertyId);
+      if (property == null) {
+        if (mounted) setState(() => _loading = false);
+        return;
+      }
+
+      // View-count increment is only permitted by RLS for the property's
+      // owner; for every other viewer it's expected to fail. It's a
+      // best-effort analytics call, so it must never block the page load.
+      try {
+        await propertiesRepository.incrementViews(property.id, property.viewsCount);
+      } catch (_) {
+        // Ignored: non-owners cannot update views_count, and that's fine.
+      }
+
+      final userId = ref.read(authProvider).user?.id;
+      final futures = <Future>[
+        propertiesRepository.fetchSimilar(property),
+        if (userId != null) favoritesRepository.fetchFavoriteIds(userId) else Future.value(<String>{}),
+        if (userId != null)
+          supabase
+              .from('tenant_interests')
+              .select('id, status')
+              .eq('tenant_id', userId)
+              .eq('property_id', widget.propertyId)
+              .maybeSingle()
+        else
+          Future.value(null),
+      ];
+
+      final results = await Future.wait(futures);
+      if (!mounted) return;
+
+      final favorites = results[1] as Set<String>;
+      final interest = results[2] as Map<String, dynamic>?;
+
+      setState(() {
+        _property = property;
+        _similarProperties = results[0] as List<Property>;
+        _favorites = favorites;
+        _isFavorite = favorites.contains(property.id);
+        _interestStatus = interest?['status'] as String?;
+        _loading = false;
+      });
+    } catch (_) {
       if (mounted) setState(() => _loading = false);
-      return;
     }
-
-    await propertiesRepository.incrementViews(property.id, property.viewsCount);
-
-    final userId = ref.read(authProvider).user?.id;
-    final futures = <Future>[
-      propertiesRepository.fetchSimilar(property),
-      if (userId != null) favoritesRepository.fetchFavoriteIds(userId) else Future.value(<String>{}),
-      if (userId != null)
-        supabase
-            .from('tenant_interests')
-            .select('id, status')
-            .eq('tenant_id', userId)
-            .eq('property_id', widget.propertyId)
-            .maybeSingle()
-      else
-        Future.value(null),
-    ];
-
-    final results = await Future.wait(futures);
-    if (!mounted) return;
-
-    final favorites = results[1] as Set<String>;
-    final interest = results[2] as Map<String, dynamic>?;
-
-    setState(() {
-      _property = property;
-      _similarProperties = results[0] as List<Property>;
-      _favorites = favorites;
-      _isFavorite = favorites.contains(property.id);
-      _interestStatus = interest?['status'] as String?;
-      _loading = false;
-    });
   }
 
   Future<void> _toggleFavorite() async {
