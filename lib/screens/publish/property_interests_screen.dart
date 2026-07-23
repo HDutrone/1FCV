@@ -5,6 +5,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 
 import '../../core/supabase_client.dart';
 import '../../core/theme.dart';
+import '../../data/conversations_repository.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/animated_scale_tap.dart';
 import '../../widgets/skeleton.dart';
@@ -109,51 +110,35 @@ class _PropertyInterestsScreenState extends ConsumerState<PropertyInterestsScree
     });
   }
 
+  /// Accepting/rejecting a candidate never talks to them directly: status
+  /// changes and the admin-mediated conversation are both handled by
+  /// respond_to_tenant_interest, a server-side function the owner cannot
+  /// bypass to wire a direct channel to the tenant.
   Future<void> _updateStatus(String interestId, String newStatus, String? tenantId) async {
     final ownerId = ref.read(authProvider).user?.id;
     if (ownerId == null) return;
     setState(() => _processingId = interestId);
 
-    await supabase.from('tenant_interests').update({'status': newStatus}).eq('id', interestId);
-
-    if (newStatus == 'accepted' && tenantId != null) {
-      final existing = await supabase
-          .from('conversations')
-          .select('id')
-          .eq('property_id', widget.propertyId)
-          .eq('tenant_id', tenantId)
-          .eq('owner_id', ownerId)
-          .maybeSingle();
-
-      if (existing == null) {
-        await supabase.from('conversations').insert({
-          'property_id': widget.propertyId,
-          'tenant_id': tenantId,
-          'owner_id': ownerId,
-          'interest_id': interestId,
-          'status': 'active',
-          'last_message_at': DateTime.now().toIso8601String(),
-        });
-      }
+    try {
+      await conversationsRepository.respondToInterest(interestId, newStatus);
+      if (!mounted) return;
+      setState(() {
+        _interests = _interests.map((i) => i.id == interestId ? i.copyWith(status: newStatus) : i).toList();
+        _processingId = null;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _processingId = null);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Une erreur est survenue. Veuillez réessayer.')),
+      );
     }
-
-    if (!mounted) return;
-    setState(() {
-      _interests = _interests.map((i) => i.id == interestId ? i.copyWith(status: newStatus) : i).toList();
-      _processingId = null;
-    });
   }
 
   Future<void> _openConversation(String tenantId) async {
     final ownerId = ref.read(authProvider).user?.id;
     if (ownerId == null) return;
-    final conv = await supabase
-        .from('conversations')
-        .select('id')
-        .eq('property_id', widget.propertyId)
-        .eq('tenant_id', tenantId)
-        .eq('owner_id', ownerId)
-        .maybeSingle();
+    final conv = await conversationsRepository.findOwnerAdminConversation(widget.propertyId, ownerId);
     if (conv != null && mounted) {
       context.push('/conversation/${conv['id']}');
     }

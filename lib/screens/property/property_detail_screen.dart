@@ -16,6 +16,7 @@ import '../../widgets/animated_scale_tap.dart';
 import '../../widgets/app_badge.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_input.dart';
+import '../../widgets/fullscreen_gallery.dart';
 import '../../widgets/property_card.dart';
 import '../../widgets/property_image_placeholder.dart';
 import '../../widgets/skeleton.dart';
@@ -193,57 +194,15 @@ class _PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen> {
     if (conv != null && mounted) context.push('/conversation/${conv['id']}');
   }
 
+  /// Expressing interest never talks to the owner/agent directly: it goes
+  /// through submit_tenant_interest, a server-side function that is the
+  /// only thing allowed to create the admin-mediated conversation pair.
   Future<void> _submitInterest(String message) async {
     final user = ref.read(authProvider).user;
     final property = _property;
     if (user == null || property == null) return;
 
-    final interest = await supabase
-        .from('tenant_interests')
-        .insert({'tenant_id': user.id, 'property_id': property.id, 'message': message})
-        .select()
-        .maybeSingle();
-
-    if (interest == null) return;
-
-    final adminProfile = await supabase.from('profiles').select('id').eq('role', 'admin').limit(1).maybeSingle();
-    final adminId = adminProfile?['id'] as String?;
-
-    final searcherConv = await supabase
-        .from('conversations')
-        .insert({
-          'property_id': property.id,
-          'tenant_id': user.id,
-          'owner_id': adminId ?? property.ownerId,
-          'interest_id': interest['id'],
-          'status': 'active',
-          'conversation_type': 'searcher_admin',
-          'admin_id': adminId,
-        })
-        .select()
-        .maybeSingle();
-
-    if (searcherConv != null && adminId != null) {
-      final ownerConv = await supabase
-          .from('conversations')
-          .insert({
-            'property_id': property.id,
-            'tenant_id': adminId,
-            'owner_id': property.ownerId,
-            'interest_id': interest['id'],
-            'status': 'active',
-            'conversation_type': 'owner_admin',
-            'admin_id': adminId,
-            'related_conversation_id': searcherConv['id'],
-          })
-          .select()
-          .maybeSingle();
-
-      if (ownerConv != null) {
-        await supabase.from('conversations').update({'related_conversation_id': ownerConv['id']}).eq('id', searcherConv['id']);
-      }
-    }
-
+    await conversationsRepository.submitInterest(property.id, message);
     if (mounted) setState(() => _interestStatus = 'pending');
   }
 
@@ -581,11 +540,14 @@ class _Gallery extends StatelessWidget {
               controller: controller,
               itemCount: images.length,
               onPageChanged: onPageChanged,
-              itemBuilder: (context, index) => CachedNetworkImage(
-                imageUrl: images[index],
-                fit: BoxFit.cover,
-                placeholder: (context, url) => Container(color: AppColors.surfaceSecondary),
-                errorWidget: (context, url, error) => const PropertyImagePlaceholder(iconSize: 56),
+              itemBuilder: (context, index) => GestureDetector(
+                onTap: () => openFullscreenGallery(context, images: images, initialIndex: index),
+                child: CachedNetworkImage(
+                  imageUrl: images[index],
+                  fit: BoxFit.cover,
+                  placeholder: (context, url) => Container(color: AppColors.surfaceSecondary),
+                  errorWidget: (context, url, error) => const PropertyImagePlaceholder(iconSize: 56),
+                ),
               ),
             ),
           IgnorePointer(
@@ -650,10 +612,13 @@ class _Gallery extends StatelessWidget {
             ),
           ),
           if (images.length > 1) ...[
+            // Kept clear of the back/favorite row above (~64px) and the
+            // dots/badge row below (~64px) so it can never be confused
+            // with, or overlap, the back button.
             Positioned(
               left: AppSpacing.sm,
-              top: 0,
-              bottom: 0,
+              top: 64,
+              bottom: 64,
               child: Center(
                 child: _GalleryArrow(
                   icon: LucideIcons.chevronLeft,
@@ -664,8 +629,8 @@ class _Gallery extends StatelessWidget {
             ),
             Positioned(
               right: AppSpacing.sm,
-              top: 0,
-              bottom: 0,
+              top: 64,
+              bottom: 64,
               child: Center(
                 child: _GalleryArrow(
                   icon: LucideIcons.chevronRight,
@@ -706,13 +671,24 @@ class _Gallery extends StatelessWidget {
                   label: listingType == 'sale' ? 'À Vendre' : 'À Louer',
                   variant: listingType == 'sale' ? AppBadgeVariant.sale : AppBadgeVariant.rent,
                 ),
-                if (images.length > 1)
-                  Container(
-                    padding: const EdgeInsets.symmetric(vertical: 3, horizontal: 8),
-                    decoration: BoxDecoration(color: const Color(0x66000000), borderRadius: BorderRadius.circular(AppRadius.sm)),
-                    child: Text(
-                      '${activeIndex + 1}/${images.length}',
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textInverse),
+                if (images.isNotEmpty)
+                  GestureDetector(
+                    onTap: () => openFullscreenGallery(context, images: images, initialIndex: activeIndex),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 3, horizontal: 8),
+                      decoration: BoxDecoration(color: const Color(0x66000000), borderRadius: BorderRadius.circular(AppRadius.sm)),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(LucideIcons.maximize2, size: 12, color: AppColors.textInverse),
+                          const SizedBox(width: 4),
+                          if (images.length > 1)
+                            Text(
+                              '${activeIndex + 1}/${images.length}',
+                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textInverse),
+                            ),
+                        ],
+                      ),
                     ),
                   ),
               ],
@@ -1098,6 +1074,7 @@ class _InterestSheet extends StatefulWidget {
 class _InterestSheetState extends State<_InterestSheet> {
   final _messageController = TextEditingController();
   bool _submitting = false;
+  String? _error;
 
   @override
   void dispose() {
@@ -1106,9 +1083,21 @@ class _InterestSheetState extends State<_InterestSheet> {
   }
 
   Future<void> _submit() async {
-    setState(() => _submitting = true);
-    await widget.onSubmit(_messageController.text.trim());
-    if (mounted) Navigator.pop(context);
+    setState(() {
+      _submitting = true;
+      _error = null;
+    });
+    try {
+      await widget.onSubmit(_messageController.text.trim());
+      if (mounted) Navigator.pop(context);
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _submitting = false;
+          _error = "Une erreur est survenue. Veuillez réessayer.";
+        });
+      }
+    }
   }
 
   @override
@@ -1173,6 +1162,10 @@ class _InterestSheetState extends State<_InterestSheet> {
                       multiline: true,
                       maxLines: 4,
                     ),
+                    if (_error != null) ...[
+                      Text(_error!, style: const TextStyle(color: AppColors.error, fontSize: 13)),
+                      const SizedBox(height: AppSpacing.md),
+                    ],
                     AppButton(
                       title: 'Envoyer ma demande',
                       size: AppButtonSize.lg,

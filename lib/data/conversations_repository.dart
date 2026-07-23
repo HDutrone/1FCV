@@ -50,6 +50,40 @@ class ConversationsRepository {
         .eq('tenant_id', tenantId)
         .maybeSingle();
   }
+
+  Future<Map<String, dynamic>?> findOwnerAdminConversation(String propertyId, String ownerId) async {
+    return await supabase
+        .from('conversations')
+        .select('id')
+        .eq('property_id', propertyId)
+        .eq('owner_id', ownerId)
+        .eq('conversation_type', 'owner_admin')
+        .maybeSingle();
+  }
+
+  /// Submits an interest and creates the admin-mediated conversation pair
+  /// server-side (SECURITY DEFINER function) - the client can never wire a
+  /// direct tenant<->owner channel. Returns the searcher<->admin
+  /// conversation id.
+  Future<String> submitInterest(String propertyId, String message) async {
+    final result = await supabase.rpc('submit_tenant_interest', params: {
+      'p_property_id': propertyId,
+      'p_message': message,
+    });
+    return result as String;
+  }
+
+  /// Accepts or rejects a candidate. Ownership of the property is verified
+  /// server-side. Accepting only ever creates the admin-mediated
+  /// conversation pair, never a direct owner<->tenant one. Returns the
+  /// owner<->admin conversation id when accepted, null otherwise.
+  Future<String?> respondToInterest(String interestId, String newStatus) async {
+    final result = await supabase.rpc('respond_to_tenant_interest', params: {
+      'p_interest_id': interestId,
+      'p_new_status': newStatus,
+    });
+    return result as String?;
+  }
 }
 
 final conversationsRepository = ConversationsRepository();
