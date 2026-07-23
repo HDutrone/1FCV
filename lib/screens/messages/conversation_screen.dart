@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -17,9 +18,22 @@ const _months = [
 
 class _ConversationDetail {
   final String propertyTitle;
+  final double propertyPrice;
+  final String listingType;
   final String conversationType;
+  final String? relatedConversationId;
+  final String? advertiserName;
+  final String? advertiserRole;
 
-  _ConversationDetail({required this.propertyTitle, required this.conversationType});
+  _ConversationDetail({
+    required this.propertyTitle,
+    required this.propertyPrice,
+    required this.listingType,
+    required this.conversationType,
+    this.relatedConversationId,
+    this.advertiserName,
+    this.advertiserRole,
+  });
 }
 
 class ConversationScreen extends ConsumerStatefulWidget {
@@ -70,9 +84,17 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
 
     if (convData != null) {
       final property = convData['property'] as Map<String, dynamic>?;
+      final owner = property?['owner'] as Map<String, dynamic>?;
       _conversation = _ConversationDetail(
         propertyTitle: property?['title'] as String? ?? 'Conversation',
+        propertyPrice: (property?['price'] as num?)?.toDouble() ?? 0,
+        listingType: property?['listing_type'] as String? ?? 'rent',
         conversationType: convData['conversation_type'] as String? ?? '',
+        relatedConversationId: convData['related_conversation_id'] as String?,
+        advertiserName: (owner?['display_name'] as String?)?.trim().isNotEmpty == true
+            ? owner!['display_name'] as String
+            : (owner?['agency_name'] as String?),
+        advertiserRole: owner?['role'] as String?,
       );
     }
     _messages = messages;
@@ -183,6 +205,7 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
         child: Column(
           children: [
             _buildHeader(),
+            _buildAdvertiserBanner(),
             _buildSecurityBanner(),
             Expanded(
               child: _messages.isEmpty
@@ -328,6 +351,102 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
             ),
             child: const Icon(LucideIcons.shield, size: 16, color: AppColors.primary),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAdvertiserBanner() {
+    final conversation = _conversation;
+    final profile = ref.read(authProvider).profile;
+    final isAdmin = profile?.role == 'admin';
+    if (conversation == null || !isAdmin || conversation.conversationType != 'searcher_admin') {
+      return const SizedBox.shrink();
+    }
+
+    final priceFormat = NumberFormat('#,##0', 'fr_FR');
+    final advertiserName = conversation.advertiserName?.trim().isNotEmpty == true
+        ? conversation.advertiserName!
+        : 'Annonceur inconnu';
+    final advertiserRoleLabel = roleConfigs[conversation.advertiserRole]?.label ?? conversation.advertiserRole ?? '';
+    final relatedId = conversation.relatedConversationId;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      margin: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, 0),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceSecondary,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(LucideIcons.building2, size: 14, color: AppColors.textSecondary),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  '${conversation.propertyTitle} · \$${priceFormat.format(conversation.propertyPrice)}'
+                  '${conversation.listingType == 'rent' ? '/mois' : ''}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              const Icon(LucideIcons.user, size: 14, color: AppColors.textSecondary),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text.rich(
+                  TextSpan(
+                    text: advertiserName,
+                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.text),
+                    children: [
+                      if (advertiserRoleLabel.isNotEmpty)
+                        TextSpan(
+                          text: '  ($advertiserRoleLabel)',
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w400, color: AppColors.textTertiary),
+                        ),
+                    ],
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          if (relatedId != null) ...[
+            const SizedBox(height: AppSpacing.sm),
+            GestureDetector(
+              onTap: () => context.push('/conversation/$relatedId'),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                decoration: BoxDecoration(
+                  color: AppColors.primary,
+                  borderRadius: BorderRadius.circular(AppRadius.sm + 2),
+                ),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(LucideIcons.messageCircle, size: 14, color: AppColors.textInverse),
+                    SizedBox(width: 6),
+                    Text(
+                      "Contacter l'annonceur",
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textInverse),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );

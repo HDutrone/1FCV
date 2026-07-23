@@ -172,7 +172,15 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   }
 
   Future<void> _deleteUser(Profile user) async {
-    await supabase.from('profiles').delete().eq('id', user.id);
+    final deleted = await supabase.from('profiles').delete().eq('id', user.id).select('id');
+    if ((deleted as List).isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Échec de la suppression : droits insuffisants ou compte déjà supprimé.')),
+        );
+      }
+      return;
+    }
     if (mounted) {
       setState(() => _recentUsers = _recentUsers.where((u) => u.id != user.id).toList());
     }
@@ -391,18 +399,49 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
           crossAxisSpacing: 10,
           childAspectRatio: 0.92,
           children: [
-            _statCard(icon: LucideIcons.users, label: 'Utilisateurs', value: stats.totalUsers, color: AppColors.primary),
-            _statCard(icon: LucideIcons.building2, label: 'Annonces', value: stats.totalProperties, color: AppColors.accent),
+            _statCard(
+              icon: LucideIcons.users,
+              label: 'Utilisateurs',
+              value: stats.totalUsers,
+              color: AppColors.primary,
+              onTap: () => setState(() => _activeTab = _AdminTab.users),
+            ),
+            _statCard(
+              icon: LucideIcons.building2,
+              label: 'Annonces',
+              value: stats.totalProperties,
+              color: AppColors.accent,
+              onTap: () => setState(() => _activeTab = _AdminTab.properties),
+            ),
             _statCard(
               icon: LucideIcons.clock,
               label: 'En attente',
               value: stats.pendingProperties,
               color: AppColors.warning,
               urgent: stats.pendingProperties > 0,
+              onTap: () => setState(() => _activeTab = _AdminTab.properties),
             ),
-            _statCard(icon: LucideIcons.checkCircle, label: 'Actives', value: stats.activeProperties, color: AppColors.success),
-            _statCard(icon: LucideIcons.trendingUp, label: 'Demandes', value: stats.totalInterests, color: AppColors.info),
-            _statCard(icon: LucideIcons.eye, label: 'Abonnements', value: stats.totalSubscriptions, color: const Color(0xFF7C3AED)),
+            _statCard(
+              icon: LucideIcons.checkCircle,
+              label: 'Actives',
+              value: stats.activeProperties,
+              color: AppColors.success,
+              onTap: () => setState(() => _activeTab = _AdminTab.properties),
+            ),
+            _statCard(
+              icon: LucideIcons.trendingUp,
+              label: 'Demandes',
+              value: stats.totalInterests,
+              color: AppColors.info,
+              onTap: () => context.go('/home/messages'),
+            ),
+            _statCard(
+              icon: LucideIcons.eye,
+              label: 'Abonnements',
+              value: stats.totalSubscriptions,
+              color: const Color(0xFF7C3AED),
+              onTap: () => context.push('/subscription'),
+            ),
           ],
         ),
         const SizedBox(height: AppSpacing.lg),
@@ -504,8 +543,15 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     );
   }
 
-  Widget _statCard({required IconData icon, required String label, required int value, required Color color, bool urgent = false}) {
-    return Container(
+  Widget _statCard({
+    required IconData icon,
+    required String label,
+    required int value,
+    required Color color,
+    bool urgent = false,
+    VoidCallback? onTap,
+  }) {
+    final card = Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: urgent ? AppColors.warningLight : AppColors.surface,
@@ -529,6 +575,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         ],
       ),
     );
+    if (onTap == null) return card;
+    return AnimatedScaleTap(scaleTo: 0.96, onTap: onTap, child: card);
   }
 
   Widget _quickAction({required IconData icon, required String label, required Color bg, required Color fg, required VoidCallback onTap}) {

@@ -254,10 +254,10 @@ class _RequestCard extends StatelessWidget {
         ),
         clipBehavior: Clip.antiAlias,
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             SizedBox(
               width: 100,
+              height: 130,
               child: CachedNetworkImage(imageUrl: item.imageUrl, fit: BoxFit.cover),
             ),
             Expanded(

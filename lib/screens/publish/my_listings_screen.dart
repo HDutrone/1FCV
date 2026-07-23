@@ -216,10 +216,10 @@ class _ListingCard extends StatelessWidget {
               ),
               clipBehavior: Clip.antiAlias,
               child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   SizedBox(
                     width: 110,
+                    height: 130,
                     child: property.primaryImageUrl != null
                         ? CachedNetworkImage(
                             imageUrl: property.primaryImageUrl!,

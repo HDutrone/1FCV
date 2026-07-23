@@ -15,7 +15,9 @@ class ConversationsRepository {
   Future<Map<String, dynamic>?> fetchConversation(String id) async {
     return await supabase
         .from('conversations')
-        .select('id, tenant_id, owner_id, conversation_type, admin_id, property:properties(title, listing_type)')
+        .select('id, tenant_id, owner_id, conversation_type, admin_id, related_conversation_id, '
+            'property:properties(id, title, listing_type, price, '
+            'owner:profiles!properties_owner_id_fkey(id, display_name, role, agency_name))')
         .eq('id', id)
         .maybeSingle();
   }
