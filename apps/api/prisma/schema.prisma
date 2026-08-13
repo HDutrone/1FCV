@@ -1,0 +1,58 @@
+// Prisma schema for the platform's auth/identity domain.
+// Business modules (HR, payroll, stock, CRM, accounting...) are out of scope
+// for this first pass and will get their own models as they're implemented.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  MANAGER
+  EMPLOYEE
+}
+
+// Two-step registration: a user is PENDING right after step 1 (account
+// created, profile incomplete) and becomes ACTIVE once step 2 completes it.
+enum UserStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+}
+
+model Company {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  users     User[]
+  branches  Branch[]
+}
+
+model Branch {
+  id        String   @id @default(cuid())
+  name      String
+  address   String?
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId String
+  createdAt DateTime @default(now())
+}
+
+model User {
+  id           String     @id @default(cuid())
+  email        String     @unique
+  passwordHash String
+  fullName     String?
+  phone        String?
+  role         UserRole   @default(ADMIN)
+  status       UserStatus @default(PENDING)
+  company      Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId    String
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
