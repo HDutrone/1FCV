@@ -1,0 +1,466 @@
+// 1FCV Ops — Prisma schema
+// Covers: branches, HR structure & affectations, employees, trainings, vacations,
+// payroll, sales & stock, audit, accounting, billing, CRM, users & roles.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Access control
+// ─────────────────────────────────────────────────────────────────────────
+
+enum RoleName {
+  SUPER_ADMIN
+  ADMIN
+  HR_MANAGER
+  ACCOUNTANT
+  SALES_MANAGER
+  AUDITOR
+  EMPLOYEE
+}
+
+model Role {
+  id          String   @id @default(cuid())
+  name        RoleName @unique
+  label       String
+  permissions Permission[] @relation("RolePermissions")
+  users       User[]
+  createdAt   DateTime @default(now())
+}
+
+model Permission {
+  id     String @id @default(cuid())
+  key    String @unique // e.g. "hr.employees.write"
+  label  String
+  roles  Role[] @relation("RolePermissions")
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  firstName    String
+  lastName     String
+  phone        String?
+  avatarUrl    String?
+  isActive     Boolean   @default(true)
+  lastLoginAt  DateTime?
+  roleId       String
+  role         Role      @relation(fields: [roleId], references: [id])
+  branchId     String?
+  branch       Branch?   @relation(fields: [branchId], references: [id])
+  employee     Employee?
+  auditLogs    AuditLog[]
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  // two-step registration support
+  onboardingStep Int      @default(2) // 1 = account created, 2 = profile complete
+  company        Company? @relation(fields: [companyId], references: [id])
+  companyId      String?
+}
+
+model Company {
+  id        String   @id @default(cuid())
+  name      String
+  sector    String?
+  size      String?
+  country   String?
+  users     User[]
+  branches  Branch[]
+  createdAt DateTime @default(now())
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Branches
+// ─────────────────────────────────────────────────────────────────────────
+
+model Branch {
+  id          String   @id @default(cuid())
+  name        String
+  code        String   @unique
+  address     String?
+  city        String?
+  country     String?
+  phone       String?
+  email       String?
+  isHeadquarters Boolean @default(false)
+  status      String   @default("active") // active | inactive
+  company     Company? @relation(fields: [companyId], references: [id])
+  companyId   String?
+  directions  Direction[]
+  employees   Employee[]
+  users       User[]
+  warehouses  Warehouse[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// HR structure: Direction > Department > Service, and affectations
+// ─────────────────────────────────────────────────────────────────────────
+
+model Direction {
+  id          String   @id @default(cuid())
+  name        String
+  branchId    String
+  branch      Branch   @relation(fields: [branchId], references: [id])
+  departments Department[]
+  createdAt   DateTime @default(now())
+}
+
+model Department {
+  id          String    @id @default(cuid())
+  name        String
+  directionId String
+  direction   Direction @relation(fields: [directionId], references: [id])
+  services    Service[]
+  createdAt   DateTime  @default(now())
+}
+
+model Service {
+  id           String     @id @default(cuid())
+  name         String
+  departmentId String
+  department   Department @relation(fields: [departmentId], references: [id])
+  employees    Employee[]
+  createdAt    DateTime   @default(now())
+}
+
+model Employee {
+  id           String    @id @default(cuid())
+  matricule    String    @unique
+  firstName    String
+  lastName     String
+  email        String    @unique
+  phone        String?
+  position     String
+  hireDate     DateTime
+  status       String    @default("active") // active | on_leave | terminated
+  userId       String?   @unique
+  user         User?     @relation(fields: [userId], references: [id])
+  branchId     String
+  branch       Branch    @relation(fields: [branchId], references: [id])
+  serviceId    String?
+  service      Service?  @relation(fields: [serviceId], references: [id])
+  managerId    String?
+  manager      Employee? @relation("EmployeeManager", fields: [managerId], references: [id])
+  reports      Employee[] @relation("EmployeeManager")
+
+  affectations         Affectation[]
+  trainingEnrollments  TrainingEnrollment[]
+  vacationRequests     VacationRequest[]
+  payslips             Payslip[]
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+// full affectation history: every move between branch/service/position
+model Affectation {
+  id          String    @id @default(cuid())
+  employeeId  String
+  employee    Employee  @relation(fields: [employeeId], references: [id])
+  fromServiceId String?
+  toServiceId String?
+  fromBranchId String?
+  toBranchId  String?
+  fromPosition String?
+  toPosition  String?
+  reason      String?
+  effectiveAt DateTime
+  createdById String?
+  createdAt   DateTime  @default(now())
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Trainings & vacations
+// ─────────────────────────────────────────────────────────────────────────
+
+model TrainingProgram {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  provider    String?
+  startDate   DateTime
+  endDate     DateTime
+  capacity    Int?
+  status      String   @default("scheduled") // scheduled | ongoing | completed | cancelled
+  enrollments TrainingEnrollment[]
+  createdAt   DateTime @default(now())
+}
+
+model TrainingEnrollment {
+  id          String   @id @default(cuid())
+  programId   String
+  program     TrainingProgram @relation(fields: [programId], references: [id])
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id])
+  status      String   @default("enrolled") // enrolled | completed | dropped
+  score       Float?
+  createdAt   DateTime @default(now())
+
+  @@unique([programId, employeeId])
+}
+
+enum VacationType {
+  ANNUAL
+  SICK
+  MATERNITY
+  PATERNITY
+  UNPAID
+  OTHER
+}
+
+enum VacationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+model VacationRequest {
+  id          String         @id @default(cuid())
+  employeeId  String
+  employee    Employee       @relation(fields: [employeeId], references: [id])
+  type        VacationType
+  startDate   DateTime
+  endDate     DateTime
+  reason      String?
+  status      VacationStatus @default(PENDING)
+  approvedById String?
+  decidedAt   DateTime?
+  createdAt   DateTime       @default(now())
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Payroll
+// ─────────────────────────────────────────────────────────────────────────
+
+model PayrollRun {
+  id         String    @id @default(cuid())
+  period     String    // "2026-08"
+  status     String    @default("draft") // draft | processing | paid
+  runDate    DateTime  @default(now())
+  payslips   Payslip[]
+}
+
+model Payslip {
+  id           String     @id @default(cuid())
+  payrollRunId String
+  payrollRun   PayrollRun @relation(fields: [payrollRunId], references: [id])
+  employeeId   String
+  employee     Employee   @relation(fields: [employeeId], references: [id])
+  baseSalary   Decimal    @db.Decimal(14, 2)
+  bonuses      Decimal    @db.Decimal(14, 2) @default(0)
+  deductions   Decimal    @db.Decimal(14, 2) @default(0)
+  netPay       Decimal    @db.Decimal(14, 2)
+  status       String     @default("pending") // pending | paid
+  paidAt       DateTime?
+  createdAt    DateTime   @default(now())
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Sales & stock
+// ─────────────────────────────────────────────────────────────────────────
+
+model Warehouse {
+  id        String   @id @default(cuid())
+  name      String
+  branchId  String
+  branch    Branch   @relation(fields: [branchId], references: [id])
+  stocks    StockItem[]
+  movements StockMovement[]
+  createdAt DateTime @default(now())
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  sku         String   @unique
+  name        String
+  description String?
+  unitPrice   Decimal  @db.Decimal(14, 2)
+  category    String?
+  stocks      StockItem[]
+  movements   StockMovement[]
+  saleItems   SaleOrderItem[]
+  createdAt   DateTime @default(now())
+}
+
+model StockItem {
+  id          String    @id @default(cuid())
+  productId   String
+  product     Product   @relation(fields: [productId], references: [id])
+  warehouseId String
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
+  quantity    Int       @default(0)
+  reorderLevel Int      @default(5)
+
+  @@unique([productId, warehouseId])
+}
+
+enum StockMovementType {
+  IN
+  OUT
+  ADJUSTMENT
+  TRANSFER
+}
+
+model StockMovement {
+  id          String            @id @default(cuid())
+  productId   String
+  product     Product           @relation(fields: [productId], references: [id])
+  warehouseId String
+  warehouse   Warehouse         @relation(fields: [warehouseId], references: [id])
+  type        StockMovementType
+  quantity    Int
+  note        String?
+  createdAt   DateTime          @default(now())
+}
+
+enum SaleOrderStatus {
+  DRAFT
+  CONFIRMED
+  FULFILLED
+  CANCELLED
+}
+
+model SaleOrder {
+  id         String          @id @default(cuid())
+  reference  String          @unique
+  customerId String?
+  customer   Customer?       @relation(fields: [customerId], references: [id])
+  status     SaleOrderStatus @default(DRAFT)
+  items      SaleOrderItem[]
+  total      Decimal         @db.Decimal(14, 2) @default(0)
+  createdAt  DateTime        @default(now())
+}
+
+model SaleOrderItem {
+  id          String    @id @default(cuid())
+  saleOrderId String
+  saleOrder   SaleOrder @relation(fields: [saleOrderId], references: [id])
+  productId   String
+  product     Product   @relation(fields: [productId], references: [id])
+  quantity    Int
+  unitPrice   Decimal   @db.Decimal(14, 2)
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// CRM
+// ─────────────────────────────────────────────────────────────────────────
+
+enum LeadStage {
+  NEW
+  CONTACTED
+  QUALIFIED
+  PROPOSAL
+  WON
+  LOST
+}
+
+model Customer {
+  id        String   @id @default(cuid())
+  name      String
+  email     String?
+  phone     String?
+  company   String?
+  stage     LeadStage @default(NEW)
+  ownerId   String?  // sales rep user id
+  saleOrders SaleOrder[]
+  invoices  Invoice[]
+  notes     CrmNote[]
+  createdAt DateTime @default(now())
+}
+
+model CrmNote {
+  id         String   @id @default(cuid())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id])
+  authorId   String?
+  content    String
+  createdAt  DateTime @default(now())
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Billing & accounting
+// ─────────────────────────────────────────────────────────────────────────
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+model Invoice {
+  id         String        @id @default(cuid())
+  number     String        @unique
+  customerId String?
+  customer   Customer?     @relation(fields: [customerId], references: [id])
+  issueDate  DateTime      @default(now())
+  dueDate    DateTime
+  amount     Decimal       @db.Decimal(14, 2)
+  status     InvoiceStatus @default(DRAFT)
+  lines      InvoiceLine[]
+  createdAt  DateTime      @default(now())
+}
+
+model InvoiceLine {
+  id          String  @id @default(cuid())
+  invoiceId   String
+  invoice     Invoice @relation(fields: [invoiceId], references: [id])
+  description String
+  quantity    Int     @default(1)
+  unitPrice   Decimal @db.Decimal(14, 2)
+}
+
+model Account {
+  id          String        @id @default(cuid())
+  code        String        @unique // e.g. "601000"
+  name        String
+  type        String        // asset | liability | equity | revenue | expense
+  entries     JournalLine[]
+  createdAt   DateTime      @default(now())
+}
+
+model JournalEntry {
+  id        String        @id @default(cuid())
+  reference String        @unique
+  date      DateTime      @default(now())
+  memo      String?
+  lines     JournalLine[]
+  createdAt DateTime      @default(now())
+}
+
+model JournalLine {
+  id             String       @id @default(cuid())
+  journalEntryId String
+  journalEntry   JournalEntry @relation(fields: [journalEntryId], references: [id])
+  accountId      String
+  account        Account      @relation(fields: [accountId], references: [id])
+  debit          Decimal      @db.Decimal(14, 2) @default(0)
+  credit         Decimal      @db.Decimal(14, 2) @default(0)
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Audit
+// ─────────────────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id])
+  action     String   // e.g. "employee.create"
+  entityType String
+  entityId   String?
+  metadata   Json?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+}
