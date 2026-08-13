@@ -1,0 +1,238 @@
+.shell {
+  display: flex;
+  min-height: 100dvh;
+  background: var(--color-bg-soft);
+}
+
+.sidebar {
+  width: 256px;
+  flex-shrink: 0;
+  background: var(--color-bg-inverse);
+  color: var(--color-text-inverse);
+  display: flex;
+  flex-direction: column;
+  padding: 20px 14px;
+  position: sticky;
+  top: 0;
+  height: 100dvh;
+  overflow-y: auto;
+}
+
+.sidebarHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px 24px;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  color: var(--color-text-inverse);
+}
+
+.logoMark {
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
+}
+
+.closeButton {
+  display: none;
+  background: none;
+  border: none;
+  color: var(--color-text-inverse);
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.navItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 0.87rem;
+  font-weight: 500;
+  color: rgba(245, 246, 251, 0.68);
+  transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
+}
+
+.navItem:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--color-text-inverse);
+}
+
+.navItemActive {
+  background: rgba(79, 70, 229, 0.28);
+  color: #fff;
+}
+
+.navIcon {
+  font-size: 0.95rem;
+  width: 18px;
+  text-align: center;
+}
+
+.backdrop {
+  display: none;
+}
+
+.main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.topbar {
+  height: 68px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 24px;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.menuButton {
+  display: none;
+  flex-direction: column;
+  gap: 4px;
+  width: 32px;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.menuButton span {
+  height: 2px;
+  background: var(--color-text);
+  border-radius: 2px;
+}
+
+.search {
+  flex: 1;
+  max-width: 420px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px;
+  border-radius: var(--radius-full);
+  background: var(--color-bg-soft);
+  border: 1px solid var(--color-border);
+  font-size: 0.85rem;
+}
+
+.search input {
+  flex: 1;
+  border: none;
+  background: none;
+  outline: none;
+  font-size: 0.85rem;
+  color: var(--color-text);
+}
+
+.topbarActions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.iconButton {
+  position: relative;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-soft);
+  cursor: pointer;
+  font-size: 0.95rem;
+}
+
+.liveDot {
+  position: absolute;
+  top: 8px;
+  right: 9px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-danger);
+  animation: pulseGlow 2.4s ease-in-out infinite;
+}
+
+.avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
+}
+
+.content {
+  flex: 1;
+  padding: 28px 24px 60px;
+}
+
+@media (max-width: 1024px) {
+  .sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    z-index: 40;
+    transform: translateX(-100%);
+    transition: transform var(--duration-base) var(--ease-out);
+    box-shadow: var(--shadow-lg);
+  }
+  .sidebarOpen {
+    transform: translateX(0);
+  }
+  .closeButton {
+    display: block;
+  }
+  .menuButton {
+    display: flex;
+  }
+  .backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(11, 13, 23, 0.5);
+    z-index: 30;
+    animation: fadeIn var(--duration-fast) var(--ease-out) both;
+  }
+  .search {
+    max-width: none;
+  }
+}
+
+@media (max-width: 560px) {
+  .search span {
+    display: none;
+  }
+  .content {
+    padding: 20px 16px 48px;
+  }
+  .topbar {
+    padding: 0 16px;
+  }
+}

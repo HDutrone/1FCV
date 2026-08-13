@@ -1,0 +1,85 @@
+.stepper {
+  display: flex;
+  align-items: center;
+  list-style: none;
+  padding: 0;
+  margin: 0 0 32px;
+}
+
+.step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+}
+
+.step:last-child {
+  flex: 0;
+}
+
+.circle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  font-size: 0.82rem;
+  font-weight: 700;
+  border: 1.5px solid var(--color-border-strong);
+  color: var(--color-text-muted);
+  background: var(--color-surface);
+  transition: background var(--duration-base) var(--ease-out), border-color var(--duration-base) var(--ease-out), color var(--duration-base) var(--ease-out);
+}
+
+.label {
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  transition: color var(--duration-base) var(--ease-out);
+}
+
+.connector {
+  flex: 1;
+  height: 2px;
+  margin: 0 6px;
+  background: var(--color-border);
+  position: relative;
+  overflow: hidden;
+}
+
+.connector::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--color-primary);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform var(--duration-slow) var(--ease-out);
+}
+
+.connector[data-filled='true']::after {
+  transform: scaleX(1);
+}
+
+.step[data-state='active'] .circle {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  box-shadow: 0 0 0 4px var(--color-primary-light);
+}
+
+.step[data-state='active'] .label {
+  color: var(--color-text);
+}
+
+.step[data-state='done'] .circle {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
+}
+
+.step[data-state='done'] .label {
+  color: var(--color-text);
+}

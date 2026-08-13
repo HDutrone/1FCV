@@ -1,0 +1,147 @@
+.shell {
+  min-height: 100dvh;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.formSide {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 24px;
+  background: var(--color-bg);
+}
+
+.formSideInner {
+  width: 100%;
+  max-width: 420px;
+  animation: fadeInUp var(--duration-slow) var(--ease-out) both;
+}
+
+.logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  margin-bottom: 40px;
+}
+
+.logoMark {
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
+}
+
+.formCard {
+  width: 100%;
+}
+
+.artSide {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  padding: 64px;
+  background: var(--color-bg-inverse);
+  color: var(--color-text-inverse);
+}
+
+.artGlow {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(560px circle at 20% 20%, rgba(79, 70, 229, 0.5), transparent 60%),
+    radial-gradient(420px circle at 90% 80%, rgba(6, 182, 212, 0.35), transparent 60%);
+}
+
+.artContent {
+  position: relative;
+  max-width: 420px;
+  animation: fadeIn var(--duration-slow) var(--ease-out) both;
+  animation-delay: 100ms;
+}
+
+.artTitle {
+  font-size: clamp(1.6rem, 2.6vw, 2.1rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin-bottom: 16px;
+}
+
+.artBody {
+  font-size: 0.98rem;
+  line-height: 1.65;
+  color: rgba(245, 246, 251, 0.72);
+  margin-bottom: 32px;
+}
+
+.highlightList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.highlightItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.92rem;
+  opacity: 0;
+  animation: fadeInUp var(--duration-base) var(--ease-out) both;
+}
+
+.checkIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.14);
+  font-size: 0.7rem;
+}
+
+.floatShapeA {
+  position: absolute;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  top: -60px;
+  right: -60px;
+  animation: floatSlow 9s ease-in-out infinite;
+}
+
+.floatShapeB {
+  position: absolute;
+  width: 140px;
+  height: 140px;
+  border-radius: 30%;
+  background: rgba(255, 255, 255, 0.04);
+  bottom: 40px;
+  right: 80px;
+  animation: float 7s ease-in-out infinite;
+}
+
+@media (max-width: 900px) {
+  .shell {
+    grid-template-columns: 1fr;
+  }
+  .artSide {
+    display: none;
+  }
+  .formSide {
+    padding: 40px 20px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .formSideInner, .artContent, .highlightItem, .floatShapeA, .floatShapeB {
+    animation: none;
+    opacity: 1;
+  }
+}
